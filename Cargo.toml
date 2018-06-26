@@ -1,0 +1,8 @@
+[package]
+name = "cli-table"
+version = "0.1.0"
+authors = ["Tom Arrell <tom.arrell@gmail.com>"]
+
+[dependencies]
+
+clap = "~2.31"
