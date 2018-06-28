@@ -30,17 +30,11 @@ fn main() {
 }
 
 fn parse_csv<'a>(input: &'a str) -> Result<Vec<Vec<&str>>, Box<Error>> {
-    let mut csv: Vec<Vec<&str>> = vec![];
     let lines = input.trim().split("\n");
 
-    for line in lines {
-        let mut new_col: Vec<&str> = vec![];
-        let cols = line.split(", ");
-        for col in cols {
-            new_col.push(col);
-        }
-        csv.push(new_col);
-    }
+    let csv: Vec<Vec<&str>> = lines
+        .map(|line| line.split(", ").collect::<Vec<&str>>())
+        .collect();
 
     Ok(csv)
 }
