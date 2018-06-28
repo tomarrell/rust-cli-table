@@ -1,6 +1,10 @@
 extern crate clap;
 
+use std::error::Error;
+
 use clap::App;
+
+type Csv<'a> = Vec<Vec<&'a str>>;
 
 fn main() {
     App::new("rust-cli-table")
@@ -9,20 +13,39 @@ fn main() {
         .about("Renders a table in the command line from a CSV")
         .get_matches();
 
-    let test_data: &[&[&str]] = &[
-        &["Name", "Email", "Address", "Phone"],
-        &["Tom", "tom@tom.com", "2 Cool St", "02145718"],
-        &["James", "james@movio.com", "2 St", "0214"],
-    ];
+    let stdin = "header1, header2\n1, 2\n";
 
-    let max_column_width_matrix = max_column_width(test_data);
-    println!("{:?}", max_column_width_matrix);
+    let test_data: Csv = parse_csv(stdin).unwrap();
 
-    render_header(test_data.get(0).unwrap(), max_column_width_matrix.clone());
-    render_data(test_data.get(1..).unwrap(), max_column_width_matrix.clone());
+    let max_column_width_matrix = max_column_width(test_data.clone());
+
+    render_header(
+        test_data.get(0).unwrap().to_vec(),
+        max_column_width_matrix.clone(),
+    );
+    render_data(
+        test_data.get(1..).unwrap().to_vec(),
+        max_column_width_matrix.clone(),
+    );
 }
 
-fn max_column_width<'a>(table: &'a [&[&str]]) -> Vec<usize> {
+fn parse_csv<'a>(input: &'a str) -> Result<Vec<Vec<&str>>, Box<Error>> {
+    let mut csv: Vec<Vec<&str>> = vec![];
+    let lines = input.trim().split("\n");
+
+    for line in lines {
+        let mut new_col: Vec<&str> = vec![];
+        let cols = line.split(", ");
+        for col in cols {
+            new_col.push(col);
+        }
+        csv.push(new_col);
+    }
+
+    Ok(csv)
+}
+
+fn max_column_width<'a>(table: Csv) -> Vec<usize> {
     // Might panic
     let col_count = table.get(0).unwrap().len();
 
@@ -39,7 +62,7 @@ fn max_column_width<'a>(table: &'a [&[&str]]) -> Vec<usize> {
     width_matrix
 }
 
-fn render_data(data: &[&[&str]], max_width_matrix: Vec<usize>) -> usize {
+fn render_data(data: Csv, max_width_matrix: Vec<usize>) -> usize {
     let mut data_string = String::from("");
 
     for row in data {
@@ -47,7 +70,7 @@ fn render_data(data: &[&[&str]], max_width_matrix: Vec<usize>) -> usize {
             data_string.push_str(&format!(
                 "| {:width$} ",
                 cell,
-                width = *max_width_matrix.get(index).unwrap_or(&1)
+                width = max_width_matrix.get(index).unwrap_or(&1)
             ));
         }
         data_string.push_str("|\n");
@@ -68,25 +91,25 @@ fn render_data(data: &[&[&str]], max_width_matrix: Vec<usize>) -> usize {
     abs_width
 }
 
-fn render_header(headers: &[&str], max_width_matrix: Vec<usize>) -> usize {
+fn render_header(headers: Vec<&str>, max_width_matrix: Vec<usize>) -> usize {
     let mut header_string = String::from("");
 
     for (index, h) in headers.iter().enumerate() {
         header_string.push_str(&format!(
             "| {:width$} ",
             h,
-            width = *max_width_matrix.get(index).unwrap_or(&2)
+            width = max_width_matrix.get(index).unwrap_or(&2)
         ));
     }
 
     // Absolute length of printed line, including beginning and end symbols
-    let header_length = header_string.chars().count() + 1;
+    let abs_width = header_string.chars().count() + 1;
 
-    print_spacer(header_length);
+    print_spacer(abs_width);
     println!("{}|", header_string);
-    print_spacer(header_length);
+    print_spacer(abs_width);
 
-    header_length
+    abs_width
 }
 
 fn print_spacer(length: usize) {
