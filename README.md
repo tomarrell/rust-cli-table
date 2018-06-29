@@ -1,5 +1,6 @@
 # Rust-cli-table
-A CLI tabling tool which parses CSVs
+A CLI tabling tool for parsing and pretty printing CSV's.
+
 
 # WIP
 Tom Arrell
