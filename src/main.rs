@@ -1,6 +1,7 @@
 extern crate clap;
 
 use std::error::Error;
+use std::io::{self, BufRead};
 
 use clap::App;
 
@@ -13,20 +14,38 @@ fn main() {
         .about("Renders a table in the command line from a CSV")
         .get_matches();
 
-    let stdin = "header1, header2\n1, 2\n";
+    let mut buffer = String::new();
+    let stdin = io::stdin();
 
-    let test_data: Csv = parse_csv(stdin).unwrap();
+    for line in stdin.lock().lines() {
+        match line {
+            Ok(x) => {
+                buffer.push_str(&format!("{}\n", &x));
+            }
+            // Add better error handling
+            Err(_) => (),
+        }
+    }
 
-    let max_column_width_matrix = max_column_width(test_data.clone());
+    let parsed_data: Csv = match parse_csv(&buffer) {
+        Ok(x) => x,
+        Err(_) => panic!("Failed to parse stdin CSV"),
+    };
 
-    render_header(
-        test_data.get(0).unwrap().to_vec(),
-        max_column_width_matrix.clone(),
-    );
-    render_data(
-        test_data.get(1..).unwrap().to_vec(),
-        max_column_width_matrix.clone(),
-    );
+    let max_column_width_matrix = max_column_width(parsed_data.clone());
+
+    let first_row = match parsed_data.get(0) {
+        Some(x) => x,
+        None => panic!("Failed to get header"),
+    };
+
+    let data_rest = match parsed_data.get(1..) {
+        Some(x) => x,
+        None => panic!("Failed to get rest of data"),
+    };
+
+    render_header(first_row.to_vec(), max_column_width_matrix.clone());
+    render_data(data_rest.to_vec(), max_column_width_matrix.clone());
 }
 
 fn parse_csv<'a>(input: &'a str) -> Result<Vec<Vec<&str>>, Box<Error>> {
@@ -40,15 +59,22 @@ fn parse_csv<'a>(input: &'a str) -> Result<Vec<Vec<&str>>, Box<Error>> {
 }
 
 fn max_column_width<'a>(table: Csv) -> Vec<usize> {
-    // Might panic
-    let col_count = table.get(0).unwrap().len();
+    let col_count = match table.get(0) {
+        Some(x) => x.len(),
+        None => panic!("Failed to get column count from first row"),
+    };
 
     let mut width_matrix = vec![0; col_count];
 
     for row in table {
         for (i, item) in row.iter().enumerate() {
-            if width_matrix.get(i).unwrap() < &item.len() {
-                width_matrix[i] = item.len();
+            let curr_max_width = match width_matrix.get_mut(i) {
+                Some(x) => x,
+                None => continue,
+            };
+
+            if curr_max_width < &mut item.len() {
+                *curr_max_width = item.len();
             }
         }
     }
@@ -76,7 +102,7 @@ fn render_data(data: Csv, max_width_matrix: Vec<usize>) -> usize {
         .as_str()
         .split("\n")
         .next()
-        .unwrap()
+        .unwrap_or("")
         .chars()
         .count();
 
