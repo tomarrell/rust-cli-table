@@ -1,11 +1,13 @@
 extern crate clap;
 
-use std::error::Error;
+mod csv;
+mod render;
+
 use std::io::{self, BufRead};
 
 use clap::App;
-
-type Csv<'a> = Vec<Vec<&'a str>>;
+use csv::{parse, CsvType};
+use render::{render_data, render_header};
 
 fn main() {
     App::new("rust-cli-table")
@@ -27,7 +29,7 @@ fn main() {
         }
     }
 
-    let parsed_data: Csv = match parse_csv(&buffer) {
+    let parsed_data: CsvType = match parse(&buffer) {
         Ok(x) => x,
         Err(_) => panic!("Failed to parse stdin CSV"),
     };
@@ -48,17 +50,7 @@ fn main() {
     render_data(data_rest.to_vec(), max_column_width_matrix.clone());
 }
 
-fn parse_csv<'a>(input: &'a str) -> Result<Vec<Vec<&str>>, Box<Error>> {
-    let lines = input.trim().split("\n");
-
-    let csv: Vec<Vec<&str>> = lines
-        .map(|line| line.split(", ").collect::<Vec<&str>>())
-        .collect();
-
-    Ok(csv)
-}
-
-fn max_column_width<'a>(table: Csv) -> Vec<usize> {
+fn max_column_width<'a>(table: CsvType) -> Vec<usize> {
     let col_count = match table.get(0) {
         Some(x) => x.len(),
         None => panic!("Failed to get column count from first row"),
@@ -80,58 +72,4 @@ fn max_column_width<'a>(table: Csv) -> Vec<usize> {
     }
 
     width_matrix
-}
-
-fn render_data(data: Csv, max_width_matrix: Vec<usize>) -> usize {
-    let mut data_string = String::from("");
-
-    for row in data {
-        for (index, cell) in row.iter().enumerate() {
-            data_string.push_str(&format!(
-                "| {:width$} ",
-                cell,
-                width = max_width_matrix.get(index).unwrap_or(&1)
-            ));
-        }
-        data_string.push_str("|\n");
-    }
-
-    print!("{}", data_string);
-
-    let abs_width = data_string
-        .as_str()
-        .split("\n")
-        .next()
-        .unwrap_or("")
-        .chars()
-        .count();
-
-    print_spacer(abs_width);
-
-    abs_width
-}
-
-fn render_header(headers: Vec<&str>, max_width_matrix: Vec<usize>) -> usize {
-    let mut header_string = String::from("");
-
-    for (index, h) in headers.iter().enumerate() {
-        header_string.push_str(&format!(
-            "| {:width$} ",
-            h,
-            width = max_width_matrix.get(index).unwrap_or(&2)
-        ));
-    }
-
-    // Absolute length of printed line, including beginning and end symbols
-    let abs_width = header_string.chars().count() + 1;
-
-    print_spacer(abs_width);
-    println!("{}|", header_string);
-    print_spacer(abs_width);
-
-    abs_width
-}
-
-fn print_spacer(length: usize) {
-    println!("+{}+", "-".repeat(length - 2 as usize));
 }
